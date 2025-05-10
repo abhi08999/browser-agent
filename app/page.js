@@ -1,103 +1,121 @@
-import Image from "next/image";
+'use client';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [prompt, setPrompt] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [results, setResults] = useState([]);
+  const [scrapedData, setScrapedData] = useState({});
+  const [summary, setSummary] = useState('');
+  const [executionTime, setExecutionTime] = useState(0);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus('executing');
+    setResults([]);
+    setScrapedData({});
+    setSummary('');
+
+    try {
+      const response = await fetch('/api/automate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setResults(data.results);
+        setScrapedData(data.scrapedData || {});
+        setSummary(data.summary || '');
+        setExecutionTime(data.executionTime);
+        setStatus('success');
+      } else {
+        throw new Error(data.error || 'Request failed');
+      }
+    } catch (error) {
+      setResults([`❌ Error: ${error.message}`]);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-8 bg-gray-50">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6">AI Browser Agent</h1>
+        
+        <form onSubmit={handleSubmit} className="mb-8 bg-white p-6 rounded-lg shadow">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="w-full p-4 border rounded-lg mb-4"
+            placeholder="Try: 'Search for AI news on Google' or 'Login to GitHub'"
+            rows={4}
+          />
+          <button 
+            type="submit" 
+            disabled={status === 'executing'}
+            className="cursor-pointer px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {status === 'executing' ? 'Executing...' : 'Run Automation'}
+          </button>
+        </form>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-semibold mb-4">Execution Log</h2>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {results.map((result, i) => (
+                <div 
+                  key={i} 
+                  className={`p-3 rounded ${
+                    result.startsWith('❌') ? 'bg-red-50 text-red-800' : 
+                    result.startsWith('✅') ? 'bg-green-50 text-green-800' : 'bg-gray-50'
+                  }`}
+                >
+                  {result}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {summary && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h2 className="text-xl font-semibold mb-4">Summary</h2>
+                <div className="whitespace-pre-wrap">{summary}</div>
+              </div>
+            )}
+
+            {Object.keys(scrapedData).length > 0 && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h2 className="text-xl font-semibold mb-4">Scraped Data</h2>
+                {Object.entries(scrapedData).map(([key, values]) => (
+                  <div key={key} className="mb-4">
+                    <h3 className="font-medium mb-2">{key}:</h3>
+                    <ul className="list-disc pl-5">
+                      {values.slice(0, 5).map((value, i) => (
+                        <li key={i}>{value}</li>
+                      ))}
+                      {values.length > 5 && <li>...and {values.length - 5} more</li>}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {status !== 'idle' && (
+          <div className="mt-6 p-4 bg-white rounded-lg shadow">
+            <p>
+              Status: <span className="font-medium">{status}</span> | 
+              Execution Time: <span className="font-medium">{executionTime}ms</span>
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
