@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
+  const [forceGoogle, setForceGoogle] = useState(false);
   const [status, setStatus] = useState('idle');
   const [results, setResults] = useState([]);
   const [scrapedData, setScrapedData] = useState({});
@@ -20,7 +21,7 @@ export default function Home() {
       const response = await fetch('/api/automate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, forceGoogle })
       });
 
       const data = await response.json();
@@ -50,13 +51,25 @@ export default function Home() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="w-full p-4 border rounded-lg mb-4"
-            placeholder="Try: 'Search for AI news on Google' or 'Login to GitHub'"
+            placeholder="Try: 'Search for AI news on Google' or 'Find Mercury on Wikipedia'"
             rows={4}
           />
+          <div className="flex items-center mb-4">
+            <input
+              type="checkbox"
+              id="forceGoogle"
+              checked={forceGoogle}
+              onChange={(e) => setForceGoogle(e.target.checked)}
+              className="mr-2"
+            />
+            <label htmlFor="forceGoogle" className="text-sm">
+              Force Google search (may require CAPTCHA)
+            </label>
+          </div>
           <button 
             type="submit" 
             disabled={status === 'executing'}
-            className="cursor-pointer px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
           >
             {status === 'executing' ? 'Executing...' : 'Run Automation'}
           </button>
@@ -110,7 +123,7 @@ export default function Home() {
         {status !== 'idle' && (
           <div className="mt-6 p-4 bg-white rounded-lg shadow">
             <p>
-              Status: <span className="font-medium">{status}</span> | 
+              Status: <span className="font-medium capitalize">{status}</span> | 
               Execution Time: <span className="font-medium">{executionTime}ms</span>
             </p>
           </div>
